@@ -1,0 +1,42 @@
+- name: Upgrade GitLab to version 17.3
+  hosts: gitlab
+  become: true
+
+  tasks:
+    - name: Check GitLab version compatibility
+      shell: ./version_check.sh 
+      register: version_check_result
+      failed_when: "'Direct upgrade from' not in version_check_result.stdout"
+      changed_when: false
+
+    - name: Ensure GitLab repository is configured
+      yum_repository:
+        name: gitlab_gitlab-ee
+        description: GitLab EE Repository
+        baseurl: https://packages.gitlab.com/gitlab/gitlab-ee/el/8/$basearch  # Adjust if needed
+        gpgcheck: yes
+        enabled: yes
+        repo_gpgcheck: yes
+        gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
+
+    - name: Ensure GitLab is updated to version 17.0
+      yum:
+        name: gitlab-ee-17.0.*
+        state: latest
+
+    - name: Reconfigure GitLab
+      command: /opt/gitlab/bin/gitlab-ctl reconfigure
+
+    - name: Restart GitLab
+      command: /opt/gitlab/bin/gitlab-ctl restart
+
+    - name: Verify GitLab Version
+      shell: /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "GitLab version"
+      register: gitlab_version
+      changed_when: false  # This line ensures the task is not marked as changed
+      ignore_errors: true  # Add this line
+
+    - name: Display GitLab Version
+      debug:
+        msg: "{{ gitlab_version.stdout }}"
+      when: gitlab_version is defined and gitlab_version.stdout is defined  # Add this condition
