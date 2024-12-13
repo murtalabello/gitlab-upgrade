@@ -1,2 +1,2 @@
 [gitlab]
-{{ secrets.GITLAB_HOST }} ansible_user=azureuser ansible_become=true
+${{ secrets.GITLAB_HOST }} ansible_user=azureuser ansible_become=true
