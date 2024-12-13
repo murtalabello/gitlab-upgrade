@@ -13,20 +13,35 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set Ansible version 
-        run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> <span class="math-inline">GITHUB\_ENV
-\- name\: Install Ansible
-run\: \|
-sudo apt\-get update
-sudo apt\-get install \-y ansible
-\- name\: Configure SSH connection
-run\: \|
-mkdir \-p \~/\.ssh
-echo "</span>{{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+        run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Configure SSH connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           touch ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-          ssh-keyscan <span class="math-inline">\{\{ secrets\.GITLAB\_HOST \}\} \>\> \~/\.ssh/known\_hosts
-\- name\: Check Ansible and Python versions
-run\: \|
-ansible \-\-version
-ssh azureuser@</span>{{ secrets.GITLAB_HOST }} '
+          ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Check Ansible and Python versions
+        run: |
+          ansible --version
+          ssh azureuser@${{ secrets.GITLAB_HOST }} 'python3 --version'
+
+      - name: Upgrade to 17.0 and then 17.3
+        run: |
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+          if [[ $? -eq 0 ]]; then
+            echo "Upgrade to 17.0 successful. Proceeding to 17.3"
+            sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
+            ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+          else
+            echo "Upgrade to 17.0 failed. Exiting."
+            exit 1
+          fi
