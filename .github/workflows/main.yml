@@ -3,7 +3,7 @@ name: GitLab Upgrade Workflow
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
         ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "chmod +x /tmp/version_check.sh"
 
     - name: Validate Upgrade Path
-      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
+      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
 
     - name: Upgrade Python on Server
       run: |
@@ -43,11 +43,10 @@ jobs:
           sudo make altinstall &&
           sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 1
         "
-      shell: bash
 
     - name: Run Ansible Playbook to Upgrade to Target Version
       run: |
         ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
 
     - name: Verify GitLab Version
-      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azure
+      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
