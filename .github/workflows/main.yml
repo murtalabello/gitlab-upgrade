@@ -12,6 +12,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set Ansible version 
+        run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
+
       - name: Install Ansible
         run: |
           sudo apt-get update
@@ -22,7 +25,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          touch ~/.ssh/known_hosts  # Create an empty known_hosts file
+          touch ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
           ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
