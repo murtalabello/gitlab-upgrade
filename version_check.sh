@@ -3,6 +3,12 @@
 # Get the current GitLab version (using the full path to gitlab-rake)
 current_version=$(/opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "GitLab version" | awk '{print $4}')
 
+# Check if gitlab-rake command was successful
+if [[ -z "$current_version" ]]; then
+  echo "Failed to retrieve the current GitLab version. Ensure gitlab-rake is available and configured correctly."
+  exit 1
+fi
+
 # Target GitLab version
 target_version="17.3"
 
@@ -25,7 +31,7 @@ check_upgrade_path() {
       fi
       ;;
     *)
-      echo "Upgrade path not defined for $current"
+      echo "Upgrade path not defined for version $current."
       return 1  # Invalid upgrade for other versions
       ;;
   esac
@@ -34,7 +40,7 @@ check_upgrade_path() {
   return 1
 }
 
-# Perform the check
+# Perform the upgrade path validation
 if check_upgrade_path "$current_version" "$target_version"; then
   echo "Direct upgrade from $current_version to $target_version is possible."
   exit 0  # Exit with 0 for success
