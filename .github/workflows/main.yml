@@ -20,17 +20,13 @@ jobs:
       - name: Configure SSH connection
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keygen -F ${{ secrets.GITLAB_HOST }} || ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+          echo "<span class="math-inline">\{\{ secrets\.SSH\_PRIVATE\_KEY \}\}" \| tr \-d '\\r' \> \~/\.ssh/id\_rsa
+chmod 600 \~/\.ssh/id\_rsa
+ssh\-keygen \-F "</span>{{ secrets.GITLAB_HOST }}" || ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible playbook (17.0)
         run: ansible-playbook -i inventory gitlab_upgrade.yml
 
       - name: Update playbook for 17.3
         run: |
-          sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
-          # No need to modify version_check.sh, it's already in the repo
-
-      - name: Run Ansible playbook (17.3)
-        run: ansible-playbook -i inventory gitlab_upgrade.yml
+          sed -i 's/target_version: 17.0/target_version:
