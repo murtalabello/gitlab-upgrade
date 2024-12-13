@@ -13,25 +13,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Ansible
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible sshpass
 
-      - name: Configure SSH connection
+      - name: Configure SSH Connection
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy version_check.sh to the server
+      - name: Copy version_check.sh to GitLab Server
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo chmod +x /tmp/version_check.sh"
 
       - name: Validate Upgrade Path
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
 
       - name: Run Ansible Playbook to Upgrade to 17.0
         run: |
@@ -39,7 +40,7 @@ jobs:
 
       - name: Re-Validate Upgrade Path
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
 
       - name: Run Ansible Playbook to Upgrade to 17.3
         run: |
