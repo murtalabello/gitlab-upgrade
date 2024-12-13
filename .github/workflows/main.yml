@@ -3,24 +3,22 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master  # Trigger on push to master branch
-  workflow_dispatch:  # Allow manual execution
+      - master
+  workflow_dispatch:
 
 jobs:
   upgrade:
     runs-on: ubuntu-latest
+
     steps:
-      # Step 1: Checkout the code repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Install Ansible
       - name: Install Ansible
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible
 
-      # Step 3: Configure SSH connection
       - name: Configure SSH connection
         run: |
           mkdir -p ~/.ssh
@@ -28,7 +26,6 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-      # Step 4: Run version check and validate upgrade
       - name: Validate Upgrade Path
         run: |
           chmod +x version_check.sh
@@ -36,7 +33,6 @@ jobs:
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 5: Perform Upgrade
       - name: Run Ansible Playbook
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
@@ -44,7 +40,6 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 6: Verify the GitLab version
       - name: Verify Upgrade
         run: |
           ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} '/opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "GitLab version"'
