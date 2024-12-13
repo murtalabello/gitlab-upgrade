@@ -23,10 +23,11 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keygen -F "${{ secrets.GITLAB_HOST }}" || ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts  # Add this line
 
       - name: Run Ansible playbook (17.0)
         run: ansible-playbook -i inventory gitlab_upgrade.yml
-        continue-on-error: true  # Continue to the next step even if this fails
+        continue-on-error: true
 
       - name: Update playbook for 17.3
         run: |
@@ -35,4 +36,4 @@ jobs:
 
       - name: Run Ansible playbook (17.3)
         run: ansible-playbook -i inventory gitlab_upgrade.yml
-        continue-on-error: true  # Continue to the next step even if this fails
+        continue-on-error: true
