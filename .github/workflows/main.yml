@@ -1,73 +1,50 @@
-name: GitLab Upgrade Workflow
+name: GitLab Upgrade
 
 on:
   push:
     branches:
-      - master
-  workflow_dispatch:  # Allow manual triggering of the workflow
+      - main
 
 jobs:
   upgrade:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Install Ansible
-      - name: Install Ansible
+      - name: Set up Ansible
         run: |
           sudo apt-get update
-          sudo apt-get install -y ansible
+          sudo apt-get install -y ansible sshpass
 
-      # Step 3: Configure SSH Connection
-      - name: Configure SSH Connection
+      - name: Configure SSH connection
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-      # Step 4: Create Inventory File
-      - name: Create Inventory File
-        run: |
-          echo "[gitlab]" > inventory
-          echo "${{ secrets.GITLAB_HOST }} ansible_user=azureuser ansible_become=true" >> inventory
-
-      # Step 5: Validate Upgrade Path
-      - name: Validate Upgrade Path
+      - name: Copy version_check.sh to the server
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh" || true
-        env:
-          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 6: Run Ansible Playbook to Upgrade to 17.0
+      - name: Validate Upgrade Path
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh"
+
       - name: Run Ansible Playbook to Upgrade to 17.0
-        if: always()
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 7: Re-Validate Upgrade Path
       - name: Re-Validate Upgrade Path
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh"
-        env:
-          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 8: Run Ansible Playbook to Upgrade to 17.3
       - name: Run Ansible Playbook to Upgrade to 17.3
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 9: Verify GitLab Version
       - name: Verify GitLab Version
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
-        env:
-          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
