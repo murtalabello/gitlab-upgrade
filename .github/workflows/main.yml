@@ -1,36 +1,53 @@
-- name: Upgrade GitLab to version 17.3
-  hosts: gitlab
-  become: true
+name: GitLab Upgrade Workflow
 
-  tasks:
-    - name: Check GitLab version compatibility
-      shell: /tmp/version_check.sh
-      register: version_check_result
-      failed_when: "'Direct upgrade from' not in version_check_result.stdout"
-      changed_when: false
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
 
-    - name: Ensure GitLab repository is configured
-      yum_repository:
-        name: gitlab_gitlab-ee
-        description: GitLab EE Repository
-        baseurl: https://packages.gitlab.com/gitlab/gitlab-ee/el/8/$basearch
-        gpgcheck: yes
-        enabled: yes
-        repo_gpgcheck: yes
-        gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
 
-    - name: Ensure GitLab is updated to target version
-      yum:
-        name: "gitlab-ee-{{ target_version }}.*"
-        state: latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    - name: Reconfigure GitLab
-      command: /opt/gitlab/bin/gitlab-ctl reconfigure
+    - name: Setup SSH Key and Host
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Restart GitLab
-      command: /opt/gitlab/bin/gitlab-ctl restart
+    - name: Verify SSH Connection
+      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "echo SSH connection established."
+
+    - name: Copy Version Check Script to Server
+      run: |
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "chmod +x /tmp/version_check.sh"
+
+    - name: Validate Upgrade Path
+      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
+
+    - name: Upgrade Python on Server
+      run: |
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "
+          sudo yum install -y gcc libffi-devel bzip2 bzip2-devel zlib-devel openssl-devel xz-devel &&
+          wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tgz &&
+          tar xvf Python-3.9.9.tgz &&
+          cd Python-3.9.9 &&
+          ./configure --enable-optimizations &&
+          sudo make altinstall &&
+          sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 1
+        "
+      shell: bash
+
+    - name: Run Ansible Playbook to Upgrade to Target Version
+      run: |
+        ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
 
     - name: Verify GitLab Version
-      shell: /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:"
-      register: gitlab_version
-      changed_when: false
+      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azure
