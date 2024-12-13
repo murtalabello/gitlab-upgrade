@@ -1,15 +1,30 @@
 #!/bin/bash
 
 # Retrieve current GitLab version
-current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:" | awk '{print $2}')
+current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep -i "Version:" | awk '{print $2}' | head -1)
 
-# Target version
-target_version="17.3"
+# Target version passed as an argument
+target_version="$1"
 
-if [[ "$current_version" == "16.10.10-ee" && "$target_version" == "17.0" ]]; then
-  echo "Direct upgrade from $current_version to $target_version is possible."
-  exit 0
-elif [[ "$current_version" == "17.0" && "$target_version" == "17.3" ]]; then
+# Define valid upgrade paths
+valid_upgrade_paths=(
+  "16.10.10-ee:17.0"
+  "17.0:17.1"
+  "17.1:17.3"
+)
+
+# Function to validate upgrade path
+validate_upgrade_path() {
+  for path in "${valid_upgrade_paths[@]}"; do
+    if [[ "$current_version:$target_version" == "$path" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Check if upgrade is valid
+if validate_upgrade_path; then
   echo "Direct upgrade from $current_version to $target_version is possible."
   exit 0
 else
