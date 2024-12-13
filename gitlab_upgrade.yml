@@ -1,14 +1,8 @@
-- name: Upgrade GitLab to version {{ target_version }}
+- name: Upgrade GitLab to version 17.3
   hosts: gitlab
   become: true
 
   tasks:
-    - name: Copy version_check.sh to the target server
-      copy:
-        src: version_check.sh
-        dest: /tmp/version_check.sh
-        mode: '0755'
-
     - name: Check GitLab version compatibility
       shell: /tmp/version_check.sh
       register: version_check_result
@@ -25,9 +19,9 @@
         repo_gpgcheck: yes
         gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
 
-    - name: Ensure GitLab is updated to version {{ target_version }}
+    - name: Ensure GitLab is updated to target version
       yum:
-        name: gitlab-ee-{{ target_version }}.*
+        name: "gitlab-ee-{{ target_version }}.*"
         state: latest
 
     - name: Reconfigure GitLab
@@ -40,9 +34,3 @@
       shell: /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:"
       register: gitlab_version
       changed_when: false
-      ignore_errors: true
-
-    - name: Display GitLab Version
-      debug:
-        msg: "{{ gitlab_version.stdout }}"
-      when: gitlab_version is defined and gitlab_version.stdout is defined
