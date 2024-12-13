@@ -36,15 +36,21 @@ jobs:
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 5: Run Ansible Playbook for Upgrade
-      - name: Run Ansible Playbook
+      # Step 5: Run Ansible Playbook for Intermediate Upgrade to 17.0
+      - name: Run Ansible Playbook to Upgrade to 17.0
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+
+      # Step 6: Run Ansible Playbook for Final Upgrade to 17.3
+      - name: Run Ansible Playbook to Upgrade to 17.3
+        run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 6: Verify GitLab Version
+      # Step 7: Verify GitLab Version
       - name: Verify GitLab Version
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
