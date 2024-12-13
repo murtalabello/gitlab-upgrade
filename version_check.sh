@@ -1,56 +1,66 @@
-#!/bin/bash
+name: GitLab Upgrade Workflow
 
-# Locate gitlab-rake dynamically
-GITLAB_RAKE="/opt/gitlab/bin/gitlab-rake"
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:  # Allow manual triggering of the workflow
 
-# Check if gitlab-rake exists and is executable
-if [[ ! -x "$GITLAB_RAKE" ]]; then
-  echo "Error: gitlab-rake not found or not executable at $GITLAB_RAKE"
-  exit 1
-fi
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
 
-# Get the current GitLab version (strict filtering for the correct "Version" line)
-current_version=$(sudo $GITLAB_RAKE gitlab:env:info 2>/dev/null | awk '/GitLab information/ {getline; print $2}')
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-# Check if the version was retrieved successfully
-if [[ -z "$current_version" ]]; then
-  echo "Error: Unable to retrieve the current GitLab version."
-  echo "Debug Output:"
-  sudo $GITLAB_RAKE gitlab:env:info 2>&1
-  exit 1
-fi
+      # Step 2: Install Ansible
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
 
-echo "Current GitLab version: $current_version"
+      # Step 3: Configure SSH Connection
+      - name: Configure SSH Connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-# Target GitLab version
-target_version="17.3"
+      # Step 4: Validate Upgrade Path
+      - name: Validate Upgrade Path
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash -s" < version_check.sh || echo "Intermediate upgrade needed."
+        env:
+          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-# Function to check upgrade path
-check_upgrade_path() {
-  local current="$1"
-  local target="$2"
+      # Step 5: Run Ansible Playbook for Intermediate Upgrade to 17.0
+      - name: Run Ansible Playbook to Upgrade to 17.0
+        if: always()  # Proceed regardless of validation step output
+        run: |
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
 
-  case "$current" in
-    "16.10.10-ee")
-      [[ "$target" == "17.0" ]] && return 0
-      ;;
-    "17.0")
-      [[ "$target" == "17.1" || "$target" == "17.2" || "$target" == "17.3" ]] && return 0
-      ;;
-    *)
-      echo "Upgrade path not defined for current version: $current"
-      return 1
-      ;;
-  esac
-  return 1
-}
+      # Step 6: Validate Upgrade Path to 17.3
+      - name: Re-Validate Upgrade Path
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash -s" < version_check.sh
+        env:
+          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-# Validate the upgrade path
-if check_upgrade_path "$current_version" "$target_version"; then
-  echo "Direct upgrade from $current_version to $target_version is possible."
-  exit 0
-else
-  echo "Direct upgrade from $current_version to $target_version is NOT possible."
-  echo "Please upgrade to an intermediate version first."
-  exit 1
-fi
+      # Step 7: Run Ansible Playbook for Final Upgrade to 17.3
+      - name: Run Ansible Playbook to Upgrade to 17.3
+        run: |
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+
+      # Step 8: Verify GitLab Version
+      - name: Verify GitLab Version
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
+        env:
+          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
