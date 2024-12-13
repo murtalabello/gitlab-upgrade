@@ -10,11 +10,13 @@ if [[ ! -x "$GITLAB_RAKE" ]]; then
 fi
 
 # Get the current GitLab version
-current_version=$($GITLAB_RAKE gitlab:env:info | grep "GitLab version" | awk '{print $4}')
+current_version=$(sudo $GITLAB_RAKE gitlab:env:info 2>/dev/null | grep "Version:" | awk '{print $2}')
 
 # Check if the version was retrieved successfully
 if [[ -z "$current_version" ]]; then
   echo "Error: Unable to retrieve the current GitLab version."
+  echo "Debug Output:"
+  sudo $GITLAB_RAKE gitlab:env:info 2>&1
   exit 1
 fi
 
@@ -29,25 +31,17 @@ check_upgrade_path() {
   local target="$2"
 
   case "$current" in
-    "16.10")
-      # Valid upgrade path: 16.10 -> 17.0
-      if [[ "$target" == "17.0" ]]; then
-        return 0
-      fi
+    "16.10.10-ee")
+      [[ "$target" == "17.0" ]] && return 0
       ;;
     "17.0")
-      # Valid upgrade paths: 17.0 -> 17.1, 17.2, 17.3
-      if [[ "$target" == "17.1" || "$target" == "17.2" || "$target" == "17.3" ]]; then
-        return 0
-      fi
+      [[ "$target" == "17.1" || "$target" == "17.2" || "$target" == "17.3" ]] && return 0
       ;;
     *)
       echo "Upgrade path not defined for current version: $current"
       return 1
       ;;
   esac
-
-  # If no match, the upgrade path is invalid
   return 1
 }
 
