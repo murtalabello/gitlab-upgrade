@@ -1,38 +1,42 @@
-name: GitLab Upgrade
+name: GitLab Upgrade Workflow
 
 on:
   push:
     branches:
       - master
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual triggering of the workflow
 
 jobs:
   upgrade:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # Step 1: Checkout the repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Step 2: Install Ansible
       - name: Install Ansible
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible
 
-      - name: Configure SSH connection
+      # Step 3: Configure SSH Connection
+      - name: Configure SSH Connection
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
+      # Step 4: Validate Upgrade Path
       - name: Validate Upgrade Path
         run: |
-          chmod +x version_check.sh
-          ./version_check.sh
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "bash -s" < version_check.sh
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
+      # Step 5: Run Ansible Playbook for Upgrade
       - name: Run Ansible Playbook
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
@@ -40,6 +44,9 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      - name: Verify Upgrade
+      # Step 6: Verify GitLab Upgrade
+      - name: Verify GitLab Version
         run: |
-          ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} '/opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "GitLab version"'
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "/opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'GitLab version'"
+        env:
+          GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
