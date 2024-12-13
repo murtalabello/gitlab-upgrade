@@ -10,7 +10,7 @@ if [[ ! -x "$GITLAB_RAKE" ]]; then
 fi
 
 # Get the current GitLab version
-current_version=$(sudo $GITLAB_RAKE gitlab:env:info 2>/dev/null | grep "Version:" | awk '{print $2}')
+current_version=$(sudo $GITLAB_RAKE gitlab:env:info 2>/dev/null | grep -E "^Version:" | awk '{print $2}')
 
 # Check if the version was retrieved successfully
 if [[ -z "$current_version" ]]; then
