@@ -28,7 +28,7 @@ jobs:
           touch ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
           ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
-          ssh-agent -a "${{ secrets.SSH_AUTH_SOCK }}"
+          eval "$(ssh-agent -s)"  # Start the ssh-agent
           ssh-add ~/.ssh/id_rsa
 
       - name: Check Ansible and Python versions
