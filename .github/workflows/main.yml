@@ -1,0 +1,41 @@
+name: GitLab Upgrade
+
+on:
+  push:
+    branches:
+      - master  # Use 'master' for your main branch
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Configure SSH connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run Ansible playbook (17.0)
+        run: ansible-playbook -i inventory gitlab_upgrade.yml
+
+      - name: Update playbook for 17.3
+        run: |
+          sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
+          # Add your updated version_check.sh logic here for 17.0 to 17.3
+          cat << EOF > version_check.sh
+          #!/bin/bash
+          # ... (your updated script logic) ...
+          EOF
+          chmod +x version_check.sh
+
+      - name: Run Ansible playbook (17.3)
+        run: ansible-playbook -i inventory gitlab_upgrade.yml
