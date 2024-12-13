@@ -1,2 +1,3 @@
 [gitlab]
-${{ secrets.GITLAB_HOST }} ansible_user=azureuser ansible_become=true
+172.174.249.23 ansible_user=azureuser ansible_become=true ansible_python_interpreter=/usr/bin/python3
+
