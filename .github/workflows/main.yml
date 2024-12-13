@@ -30,7 +30,7 @@ jobs:
           ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible playbook (17.0)
-        run: ansible-playbook -i inventory gitlab_upgrade.yml
+        run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
         continue-on-error: true
 
       - name: Update playbook for 17.3
@@ -39,5 +39,5 @@ jobs:
           # No need to modify version_check.sh, it's already in the repo
 
       - name: Run Ansible playbook (17.3)
-        run: ansible-playbook -i inventory gitlab_upgrade.yml
+        run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
         continue-on-error: true
