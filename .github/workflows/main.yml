@@ -3,49 +3,48 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master
+      - main
+  workflow_dispatch:
 
 jobs:
   upgrade:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible sshpass
-
-      - name: Configure SSH Connection
+      - name: Set up SSH and Transfer Script
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Copy version_check.sh to GitLab server
-        run: |
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo chmod +x /tmp/version_check.sh"
 
       - name: Validate Upgrade Path
+        id: validate-upgrade
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
+        continue-on-error: true
 
-      - name: Run Ansible Playbook to Upgrade to 17.0
+      - name: Upgrade to 17.0
+        if: steps.validate-upgrade.outcome == 'failure'
         run: |
+          echo "Performing intermediate upgrade to 17.0"
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
 
       - name: Re-Validate Upgrade Path
+        if: steps.validate-upgrade.outcome == 'failure'
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh"
 
-      - name: Run Ansible Playbook to Upgrade to 17.3
+      - name: Upgrade to 17.3
+        if: steps.re-validate-upgrade.outcome == 'success'
         run: |
+          echo "Performing upgrade to 17.3"
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
 
-      - name: Verify GitLab Version
+      - name: Verify Final Version
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
