@@ -29,7 +29,13 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-      # Step 4: Validate Upgrade Path
+      # Step 4: Create Inventory File
+      - name: Create Inventory File
+        run: |
+          echo "[gitlab]" > inventory
+          echo "${{ secrets.GITLAB_HOST }} ansible_user=azureuser ansible_become=true" >> inventory
+
+      # Step 5: Validate Upgrade Path
       - name: Validate Upgrade Path
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
@@ -37,30 +43,23 @@ jobs:
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 5: Run Ansible Playbook for Intermediate Upgrade to 17.0
+      # Step 6: Run Ansible Playbook to Upgrade to 17.0
       - name: Run Ansible Playbook to Upgrade to 17.0
-        if: always()  # Proceed regardless of validation step output
+        if: always()
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 6: Pause for Upgrade to Complete
-      - name: Pause for Upgrade
-        run: |
-          echo "Waiting for GitLab services to stabilize after upgrade to 17.0..."
-          sleep 60  # Wait for 60 seconds
-
       # Step 7: Re-Validate Upgrade Path
       - name: Re-Validate Upgrade Path
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh" || true
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh"
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
 
-      # Step 8: Run Ansible Playbook for Final Upgrade to 17.3
+      # Step 8: Run Ansible Playbook to Upgrade to 17.3
       - name: Run Ansible Playbook to Upgrade to 17.3
-        if: always()  # Proceed regardless of validation step output
         run: |
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
         env:
