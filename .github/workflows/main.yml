@@ -44,9 +44,9 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      # Step 6: Verify GitLab Upgrade
+      # Step 6: Verify GitLab Version
       - name: Verify GitLab Version
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'GitLab version'"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
         env:
           GITLAB_HOST: ${{ secrets.GITLAB_HOST }}
