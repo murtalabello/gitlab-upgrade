@@ -3,7 +3,7 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master  
+      - master
 
 jobs:
   upgrade:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set Ansible version 
+      - name: Set Ansible version
         run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
 
       - name: Install Ansible
@@ -30,13 +30,13 @@ jobs:
           ssh-keyscan ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
           eval "$(ssh-agent -s)"
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.txt
-          chmod 600 private_key.txt  # Set strict permissions
+          chmod 600 private_key.txt
           ssh-add private_key.txt
 
       - name: Check Ansible and Python versions
         run: |
           ansible --version
-          ssh azureuser@${{ secrets.GITLAB_HOST }} 'python3 --version'
+          ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} 'python3 --version'
 
       - name: Upgrade to 17.0 and then 17.3
         run: |
