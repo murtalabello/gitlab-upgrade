@@ -3,7 +3,7 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master  # Use 'master' for your main branch
+      - master 
 
 jobs:
   upgrade:
@@ -33,7 +33,30 @@ jobs:
           # Add your updated version_check.sh logic here for 17.0 to 17.3
           cat << EOF > version_check.sh
           #!/bin/bash
-          # ... (your updated script logic) ...
+
+          # ... (rest of the script) ...
+
+          check_upgrade_path() {
+            local current="$1"
+            local target="$2"
+
+            case "$current" in
+              "17.0")
+                # Valid upgrade paths from 17.0
+                if [[ "$target" == "17.1" || "$target" == "17.2" || "$target" == "17.3" ]]; then
+                  return 0
+                fi
+                ;;
+              *)
+                echo "Upgrade path not defined for $current"
+                return 1
+                ;;
+            esac
+
+            return 1  # If no match was found, the upgrade is not valid
+          }
+
+          # ... (rest of the script) ...
           EOF
           chmod +x version_check.sh
 
