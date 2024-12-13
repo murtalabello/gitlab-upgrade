@@ -13,14 +13,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up SSH and Transfer Script
+      - name: Verify and Upgrade Python on GitLab Server
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo chmod +x /tmp/version_check.sh"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "
+            sudo yum install -y gcc libffi-devel bzip2 bzip2-devel zlib-devel openssl-devel xz-devel &&
+            wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tgz &&
+            tar xvf Python-3.9.9.tgz &&
+            cd Python-3.9.9 &&
+            ./configure --enable-optimizations &&
+            sudo make altinstall &&
+            sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 1
+          "
 
       - name: Validate Upgrade Path
         id: validate-upgrade
@@ -32,7 +35,7 @@ jobs:
         if: steps.validate-upgrade.outcome == 'failure'
         run: |
           echo "Performing intermediate upgrade to 17.0"
-          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.9 target_version=17.0"
 
       - name: Re-Validate Upgrade Path
         if: steps.validate-upgrade.outcome == 'failure'
@@ -43,7 +46,7 @@ jobs:
         if: steps.re-validate-upgrade.outcome == 'success'
         run: |
           echo "Performing upgrade to 17.3"
-          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.9 target_version=17.3"
 
       - name: Verify Final Version
         run: |
