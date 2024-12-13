@@ -1,2 +1,2 @@
 [gitlab]
-172.174.249.23 ansible_user=azureuser ansible_become=true ansible_python_interpreter=/usr/bin/python3.9
+172.174.249.23 ansible_user=azureuser ansible_become=true ansible_python_interpreter=/usr/bin/python3.8.17
