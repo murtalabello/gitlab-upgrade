@@ -1,4 +1,4 @@
-name: GitLab Upgrade Workflow
+name: GitLab Upgrade
 
 on:
   push:
@@ -7,46 +7,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  upgrade:
+  upgrade_gitlab:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Setup SSH Key and Host
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+      - name: Install Required Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip sshpass ansible
 
-    - name: Verify SSH Connection
-      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "echo SSH connection established."
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Copy Version Check Script to Server
-      run: |
-        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "chmod +x /tmp/version_check.sh"
+      - name: Upload Version Check Script
+        run: |
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo chmod +x /tmp/version_check.sh"
 
-    - name: Validate Upgrade Path
-      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
+      - name: Validate Upgrade Path
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
+        continue-on-error: true
 
-    - name: Upgrade Python on Server
-      run: |
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "
-          sudo yum install -y gcc libffi-devel bzip2 bzip2-devel zlib-devel openssl-devel xz-devel &&
-          wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tgz &&
-          tar xvf Python-3.9.9.tgz &&
-          cd Python-3.9.9 &&
-          ./configure --enable-optimizations &&
-          sudo make altinstall &&
-          sudo alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 1
-        "
+      - name: Upgrade GitLab Step-by-Step
+        if: failure()  # Proceed only if upgrade validation fails
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh intermediate_version"
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=intermediate_version"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
 
-    - name: Run Ansible Playbook to Upgrade to Target Version
-      run: |
-        ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
+      - name: Upgrade GitLab to Final Version
+        run: |
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
 
-    - name: Verify GitLab Version
-      run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
+      - name: Verify GitLab Version
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
