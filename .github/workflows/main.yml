@@ -3,7 +3,7 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master  
+      - master
 
 jobs:
   upgrade:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set Ansible version 
+      - name: Set Ansible version
         run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
 
       - name: Install Ansible
@@ -36,18 +36,18 @@ jobs:
       - name: Check Ansible and Python versions
         run: |
           ansible --version
-          ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} 'python3 --version'
+          ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} '/usr/bin/python3.8 --version'  # Use the specific Python 3.8 executable
 
       - name: Install required packages on GitLab server
         run: ansible-playbook -i inventory install_packages.yml
 
       - name: Upgrade to 17.0 and then 17.3
         run: |
-          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.8"  # Use the specific Python 3.8 executable
           if [[ $? -eq 0 ]]; then
             echo "Upgrade to 17.0 successful. Proceeding to 17.3"
             sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
-            ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+            ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.8"  # Use the specific Python 3.8 executable
           else
             echo "Upgrade to 17.0 failed. Exiting."
             exit 1
