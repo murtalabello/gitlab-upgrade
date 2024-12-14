@@ -3,7 +3,8 @@
   hosts: gitlab
   become: true
   vars:
-    target_version: ""
+    target_version: "17.0"  # Set the initial target version to 17.0
+
   tasks:
     - name: Check GitLab version compatibility
       shell: "/tmp/version_check.sh {{ target_version }}"
