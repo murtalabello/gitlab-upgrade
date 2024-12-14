@@ -3,7 +3,7 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master
+      - master  
 
 jobs:
   upgrade:
