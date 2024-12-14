@@ -3,7 +3,7 @@
   hosts: gitlab
   become: true
   vars:
-    target_version: "17.0"  # Set the initial target version to 17.0
+    target_version: "17.0"
 
   tasks:
     - name: Check GitLab version compatibility
@@ -26,9 +26,7 @@
         gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
 
     - name: Install GitLab to target version
-      yum:
-        name: "gitlab-ee-{{ target_version }}.*"
-        state: latest
+      command: dnf install -y gitlab-ee-{{ target_version }}.*  # Use the command module
 
     - name: Reconfigure GitLab
       command: /opt/gitlab/bin/gitlab-ctl reconfigure
