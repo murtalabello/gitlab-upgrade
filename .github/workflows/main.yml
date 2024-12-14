@@ -12,14 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set Ansible version
-        run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
-
       - name: Install Python 3.9
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository ppa:deadsnakes/ppa  # Add Deadsnakes PPA
+          sudo add-apt-repository ppa:deadsnakes/ppa
           sudo apt-get update
           sudo apt-get install -y python3.9 python3.9-venv
 
@@ -27,6 +24,7 @@ jobs:
         run: |
           python3.9 -m venv venv
           source venv/bin/activate
+          pip install --upgrade pip  # Upgrade pip within the virtual environment
 
       - name: Install Ansible 2.9 in virtual environment
         run: pip install ansible==2.9.27
@@ -51,6 +49,7 @@ jobs:
 
       - name: Upgrade to 17.0 and then 17.3
         run: |
+          source venv/bin/activate  # Activate the virtual environment before running the playbooks
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
           if [[ $? -eq 0 ]]; then
             echo "Upgrade to 17.0 successful. Proceeding to 17.3"
