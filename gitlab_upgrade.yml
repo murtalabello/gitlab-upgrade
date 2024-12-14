@@ -28,7 +28,8 @@
     - name: Install GitLab to target version
       command: dnf install -y gitlab-ee-{{ target_version }}.*
       args:
-        warn: false  # Suppress the warning using args
+        warn: false
+      ignore_errors: true  # Ignore errors in this task
 
     - name: Reconfigure GitLab
       command: /opt/gitlab/bin/gitlab-ctl reconfigure
