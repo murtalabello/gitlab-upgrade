@@ -1,14 +1,8 @@
 #!/bin/bash
 
-# Fetch the current GitLab version
 current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:" | awk '{print $2}')
 target_version=$1
 
-# Debugging output
-echo "Debug: current_version='$current_version'"
-echo "Debug: target_version='$target_version'"
-
-# Check if the current version is empty
 if [[ -z "$current_version" ]]; then
   echo "Error: Unable to determine the current GitLab version."
   exit 1
@@ -17,7 +11,6 @@ fi
 echo "Current GitLab version: $current_version"
 echo "Target GitLab version: $target_version"
 
-# Define valid intermediate upgrade paths
 if [[ "$current_version" == "16.10.10-ee" && "$target_version" == "17.0" ]]; then
   echo "Upgrade path validated. Proceeding with upgrade to $target_version."
   exit 0
