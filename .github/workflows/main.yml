@@ -1,46 +1,46 @@
-name: GitLab Upgrade Pipeline
+name: GitLab Upgrade Workflow
 
 on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 jobs:
-  upgrade:
+  upgrade-gitlab:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure SSH Key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        touch ~/.ssh/known_hosts
-        ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
+      - name: Set up SSH connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.GITLAB_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Copy Version Check Script to Server
-      run: |
-        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo chmod +x /tmp/version_check.sh"
+      - name: Copy version_check.sh to GitLab server
+        run: |
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
 
-    - name: Validate Upgrade Path
-      id: validate-path
-      run: |
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
-      continue-on-error: true
+      - name: Validate Upgrade Path
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
 
-    - name: Upgrade GitLab to Intermediate Version
-      if: steps.validate-path.outcome == 'failure'
-      run: |
-        ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.8 target_version=17.0"
+      - name: Upgrade Python on Server
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} <<EOF
+          sudo yum install -y python38
+          sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
+          sudo alternatives --set python3 /usr/bin/python3.8
+          python3 --version
+          EOF
 
-    - name: Re-Validate Upgrade Path
-      run: |
-        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.3"
+      - name: Run Ansible Playbook to Upgrade to Target Version
+        run: |
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.8 target_version=17.0"
 
-    - name: Upgrade GitLab to Final Version
-      run: |
-        ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.8 target_version=17.3"
+      - name: Verify GitLab Version
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
