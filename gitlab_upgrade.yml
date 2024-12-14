@@ -26,7 +26,8 @@
         gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
 
     - name: Install GitLab to target version
-      command: dnf install -y gitlab-ee-{{ target_version }}.*  # Use the command module
+      command: dnf install -y gitlab-ee-{{ target_version }}.*
+      warn: false  # Suppress the warning
 
     - name: Reconfigure GitLab
       command: /opt/gitlab/bin/gitlab-ctl reconfigure
