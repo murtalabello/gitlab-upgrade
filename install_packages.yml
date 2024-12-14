@@ -1,0 +1,14 @@
+---
+- hosts: gitlab
+  become: true
+  tasks:
+    - name: Install Python 3.8
+      yum:
+        name: python38
+        state: present
+
+    - name: Create symbolic link for python3
+      file:
+        src: /usr/bin/python3.8
+        dest: /usr/bin/python3
+        state: link
