@@ -3,7 +3,7 @@ name: GitLab Upgrade Workflow
 on:
   push:
     branches:
-      - master  # Update branch as per your repo structure
+      - master
   workflow_dispatch:
 
 env:
@@ -27,10 +27,12 @@ jobs:
       - name: Copy version_check.sh to GitLab server
         run: |
           echo "${{ secrets.VERSION_CHECK_SCRIPT }}" > version_check.sh
+          chmod +x version_check.sh
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no version_check.sh azureuser@${{ secrets.GITLAB_HOST }}:/tmp/version_check.sh
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "chmod +x /tmp/version_check.sh"
 
       - name: Validate Upgrade Path
-        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh 17.0"
+        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.0"
 
       - name: Upgrade Python on Server
         run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "
@@ -43,7 +45,7 @@ jobs:
         run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
 
       - name: Re-Validate Upgrade Path
-        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh 17.3"
+        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /tmp/version_check.sh 17.3"
 
       - name: Run Ansible Playbook to Upgrade to Final Version
         run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
