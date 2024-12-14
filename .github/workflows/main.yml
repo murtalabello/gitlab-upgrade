@@ -52,7 +52,7 @@ jobs:
         run: |
           source venv/bin/activate
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
-          if [[ $? -eq 0 ]]; then
+          if grep -q "gitlab-ee-17.0" gitlab_upgrade.yml; then  # Check for successful 17.0 upgrade
             echo "Upgrade to 17.0 successful. Proceeding to 17.3"
             sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
             ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
