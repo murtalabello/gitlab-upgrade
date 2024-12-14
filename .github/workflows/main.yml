@@ -29,7 +29,8 @@ jobs:
       - name: Install Ansible 2.9 in virtual environment
         run: |
           pip install ansible==2.9.27
-          source venv/bin/activate && ansible --version  # Verify installation
+          # Verify Ansible installation within the virtual environment
+          source venv/bin/activate && ansible --version
 
       - name: Configure SSH connection
         run: |
