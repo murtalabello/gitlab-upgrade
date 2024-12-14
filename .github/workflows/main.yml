@@ -28,7 +28,7 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install ansible==2.9.27
-          ansible --version  # Verify installation
+          ansible --version
 
       - name: Configure SSH connection
         run: |
@@ -50,7 +50,7 @@ jobs:
 
       - name: Upgrade to 17.0 and then 17.3
         run: |
-          source venv/bin/activate  # Activate the virtual environment before running the playbooks
+          source venv/bin/activate
           ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
           if [[ $? -eq 0 ]]; then
             echo "Upgrade to 17.0 successful. Proceeding to 17.3"
