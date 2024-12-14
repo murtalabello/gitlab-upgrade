@@ -32,7 +32,7 @@ jobs:
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "chmod +x /tmp/version_check.sh"
 
       - name: Validate Upgrade Path
-        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh 17.0"
+        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh ${{ secrets.TARGET_VERSION }}"
 
       - name: Upgrade Python on Server
         run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "
@@ -41,14 +41,8 @@ jobs:
           sudo alternatives --set python3 /usr/bin/python3.8 &&
           python3 --version"
 
-      - name: Run Ansible Playbook to Upgrade to Intermediate Version
-        run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.0"
-
-      - name: Re-Validate Upgrade Path
-        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo bash /tmp/version_check.sh 17.3"
-
-      - name: Run Ansible Playbook to Upgrade to Final Version
-        run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=17.3"
+      - name: Run Ansible Playbook to Upgrade GitLab
+        run: ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3 target_version=${{ secrets.TARGET_VERSION }}"
 
       - name: Verify GitLab Version
         run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} "sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:'"
