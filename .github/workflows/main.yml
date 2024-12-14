@@ -20,17 +20,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3.9 python3.9-venv
 
-      - name: Create and activate virtual environment
-        run: |
-          python3.9 -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
+      - name: Create virtual environment
+        run: python3.9 -m venv venv
 
       - name: Install Ansible 2.9 in virtual environment
         run: |
+          source venv/bin/activate
+          pip install --upgrade pip
           pip install ansible==2.9.27
-          # Verify Ansible installation within the virtual environment
-          source venv/bin/activate && ansible --version
+          ansible --version  # Verify installation
 
       - name: Configure SSH connection
         run: |
