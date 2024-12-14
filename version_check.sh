@@ -1,8 +1,14 @@
 #!/bin/bash
 
-current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:" | head -1 | awk '{print $2}')
+# Fetch the current GitLab version
+current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:" | awk '{print $2}')
 target_version=$1
 
+# Debugging output
+echo "Debug: current_version='$current_version'"
+echo "Debug: target_version='$target_version'"
+
+# Check if the current version is empty
 if [[ -z "$current_version" ]]; then
   echo "Error: Unable to determine the current GitLab version."
   exit 1
