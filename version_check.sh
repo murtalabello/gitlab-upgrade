@@ -1,27 +1,24 @@
 #!/bin/bash
 
-# Fetch the current GitLab version
-CURRENT_VERSION=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep 'Version:' | awk '{print $2}')
+current_version=$(sudo /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:" | head -1 | awk '{print $2}')
+target_version=$1
 
-# Target GitLab version from argument
-TARGET_VERSION=$1
-
-# Check if the current version is empty
-if [ -z "$CURRENT_VERSION" ]; then
-  echo "Error: Unable to fetch the current GitLab version."
+if [[ -z "$current_version" ]]; then
+  echo "Error: Unable to determine the current GitLab version."
   exit 1
 fi
 
-echo "Current GitLab version: $CURRENT_VERSION"
-echo "Target GitLab version: $TARGET_VERSION"
+echo "Current GitLab version: $current_version"
+echo "Target GitLab version: $target_version"
 
-# Define the upgrade path logic
-if [[ "$CURRENT_VERSION" < "17.0" ]]; then
-  if [[ "$TARGET_VERSION" == "17.0" ]]; then
-    echo "Direct upgrade from $CURRENT_VERSION to $TARGET_VERSION is NOT possible. Upgrade to intermediate version first."
-    exit 1
-  fi
-else
-  echo "Upgrade path is valid."
+# Define valid intermediate upgrade paths
+if [[ "$current_version" == "16.10.10-ee" && "$target_version" == "17.0" ]]; then
+  echo "Upgrade path validated. Proceeding with upgrade to $target_version."
   exit 0
+elif [[ "$current_version" == "17.0" && "$target_version" == "17.3" ]]; then
+  echo "Upgrade path validated. Proceeding with upgrade to $target_version."
+  exit 0
+else
+  echo "Direct upgrade from $current_version to $target_version is NOT possible. Upgrade to intermediate version first."
+  exit 1
 fi
