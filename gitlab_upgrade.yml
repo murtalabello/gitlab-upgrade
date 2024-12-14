@@ -1,13 +1,18 @@
-- name: Upgrade GitLab to version 17.3
+---
+- name: Upgrade GitLab to version {{ target_version }}
   hosts: gitlab
   become: true
-
+  vars:
+    target_version: ""
   tasks:
     - name: Check GitLab version compatibility
-      shell: /tmp/version_check.sh
-      register: version_check_result
-      failed_when: "'Direct upgrade from' not in version_check_result.stdout"
-      changed_when: false
+      command: "/tmp/version_check.sh {{ target_version }}"
+      register: version_check
+      failed_when: "'Direct upgrade' in version_check.stdout or version_check.rc != 0"
+      ignore_errors: false
+
+    - debug:
+        msg: "Version Check Output: {{ version_check.stdout }}"
 
     - name: Ensure GitLab repository is configured
       yum_repository:
@@ -30,7 +35,10 @@
     - name: Restart GitLab
       command: /opt/gitlab/bin/gitlab-ctl restart
 
-    - name: Verify GitLab Version
+    - name: Verify GitLab version
       shell: /opt/gitlab/bin/gitlab-rake gitlab:env:info | grep "Version:"
       register: gitlab_version
       changed_when: false
+
+    - debug:
+        msg: "Upgraded GitLab Version: {{ gitlab_version.stdout }}"
