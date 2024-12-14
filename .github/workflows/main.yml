@@ -3,7 +3,7 @@ name: GitLab Upgrade
 on:
   push:
     branches:
-      - master
+      - master  
 
 jobs:
   upgrade:
@@ -12,11 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set Ansible version 
+        run: echo "ANSIBLE_FORCE_LEGACY_PYTHON=1" >> $GITHUB_ENV
+
       - name: Install Ansible
         run: |
           sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo add-apt-repository --yes --update ppa:ansible/ansible
           sudo apt-get install -y ansible
 
       - name: Configure SSH connection
@@ -37,11 +38,17 @@ jobs:
           ansible --version
           ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.GITLAB_HOST }} 'python3 --version'
 
-      - name: Upgrade to 17.0
-        run: |
-          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.6"
+      - name: Install required packages on GitLab server
+        run: ansible-playbook -i inventory install_packages.yml
 
-      - name: Upgrade to 17.3
+      - name: Upgrade to 17.0 and then 17.3
         run: |
-          sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
-          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3.6"
+          ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+          if [[ $? -eq 0 ]]; then
+            echo "Upgrade to 17.0 successful. Proceeding to 17.3"
+            sed -i 's/target_version: 17.0/target_version: 17.3/g' gitlab_upgrade.yml
+            ansible-playbook -i inventory gitlab_upgrade.yml -e "ansible_python_interpreter=/usr/bin/python3"
+          else
+            echo "Upgrade to 17.0 failed. Exiting."
+            exit 1
+          fi
