@@ -24,10 +24,12 @@ jobs:
         run: |
           python3.9 -m venv venv
           source venv/bin/activate
-          pip install --upgrade pip  # Upgrade pip within the virtual environment
+          pip install --upgrade pip
 
       - name: Install Ansible 2.9 in virtual environment
-        run: pip install ansible==2.9.27
+        run: |
+          pip install ansible==2.9.27
+          ansible --version  # Verify Ansible installation
 
       - name: Configure SSH connection
         run: |
