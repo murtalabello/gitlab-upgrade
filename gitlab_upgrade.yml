@@ -1,14 +1,14 @@
 ---
-- name: Upgrade GitLab to version {{ target_version }}
+- name: Upgrade GitLab to the target version
   hosts: gitlab
   become: true
   vars:
     target_version: ""
   tasks:
     - name: Check GitLab version compatibility
-      command: "/tmp/version_check.sh {{ target_version }}"
+      shell: "/tmp/version_check.sh {{ target_version }}"
       register: version_check
-      failed_when: "'Direct upgrade' in version_check.stdout or version_check.rc != 0"
+      failed_when: "'NOT possible' in version_check.stdout or version_check.rc != 0"
       ignore_errors: false
 
     - debug:
@@ -24,7 +24,7 @@
         repo_gpgcheck: yes
         gpgkey: https://packages.gitlab.com/gitlab/gitlab-ee/gpgkey
 
-    - name: Ensure GitLab is updated to target version
+    - name: Install GitLab to target version
       yum:
         name: "gitlab-ee-{{ target_version }}.*"
         state: latest
